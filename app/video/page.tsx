@@ -4,7 +4,6 @@ import { useUserStore, useVideoRoomUsersStore } from "@/lib/store";
 import { DataRoomResponse } from "@/types/room";
 import { redirect } from "next/navigation";
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Socket } from "socket.io-client";
 
 const VideoChatPage = () => {
   const { user } = useUserStore();
@@ -29,178 +28,123 @@ const VideoChatPage = () => {
   useEffect(() => {
     const initializeMedia = async () => {
       try {
-        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-          console.warn("getUserMedia is not supported in this browser.");
-        }
+        if (navigator.mediaDevices) {
+          console.log("Tentative d'accès à la caméra et au micro...");
+          const stream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: "user" },
+            audio: true,
+          });
 
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: "user" },
-          audio: true,
-        });
-
-        if (localVideoRef.current) {
-          localVideoRef.current.srcObject = stream;
-        }
-
-        peerConnectionRef.current = new RTCPeerConnection();
-
-        stream.getTracks().forEach((track) => {
-          peerConnectionRef.current?.addTrack(track, stream);
-        });
-
-        peerConnectionRef.current.ontrack = (event) => {
-          if (remoteVideoRef.current) {
-            remoteVideoRef.current.srcObject = event.streams[0];
+          console.log("Flux média obtenu :", stream);
+          if (localVideoRef.current) {
+            localVideoRef.current.srcObject = stream;
           }
-        };
 
-        peerConnectionRef.current.onicecandidate = (event) => {
-          if (event.candidate) {
-            socket?.emit("ice-candidate", {
-              target: otherCandidateId,
-              candidate: event.candidate,
+          if (stream) {
+            if (!user || !vRoom) return;
+
+            // Initialiser la connexion WebRTC
+            peerConnectionRef.current = new RTCPeerConnection();
+
+            // Ajouter le flux local à la connexion
+            stream.getTracks().forEach((track) => {
+              if (peerConnectionRef.current)
+                peerConnectionRef.current.addTrack(track, stream);
             });
+
+            // Émettre une offre
+            const offer = await peerConnectionRef.current.createOffer();
+            await peerConnectionRef.current.setLocalDescription(offer);
+            socket.emit("video_offer", {
+              room: vRoom,
+              offer,
+              userId: user?.id,
+            });
+
+            // Gestion des candidats ICE
+            peerConnectionRef.current.onicecandidate = (event) => {
+              if (event.candidate) {
+                console.log("Envoi du candidat :", event.candidate);
+                socket.emit("localVideo", {
+                  room: vRoom,
+                  candidate: event.candidate,
+                  userId: user?.id,
+                });
+              }
+            };
+
+            // Écouter le flux distant
+            peerConnectionRef.current.ontrack = (event) => {
+              if (remoteVideoRef.current) {
+                remoteVideoRef.current.srcObject = event.streams[0];
+                // console.log("Flux vidéo distant reçu :", event.streams[0]);
+              }
+            };
           }
-        };
+        }
       } catch (error) {
-        console.error("Error accessing media devices.", error);
+        console.error("Erreur lors de l'accès aux médias :", error);
       }
     };
 
     initializeMedia();
 
-    socket.on("offer", async (offer) => {
-      await peerConnectionRef.current?.setRemoteDescription(
-        new RTCSessionDescription(offer)
-      );
-
-      // Create an answer
-      const answer = await peerConnectionRef.current?.createAnswer();
-      await peerConnectionRef.current?.setLocalDescription(answer);
-
-      // Send answer back to the user who made the offer
-      socket.emit("answer", {
-        target: offer.sender, // Ensure this is the correct sender ID
-        answer,
-      });
-    });
-
-    socket.on("answer", async (answer) => {
-      await peerConnectionRef.current?.setRemoteDescription(
-        new RTCSessionDescription(answer)
-      );
-    });
-
-    socket.on("ice-candidate", async (candidate) => {
-      await peerConnectionRef.current?.addIceCandidate(
-        new RTCIceCandidate(candidate)
-      );
-    });
-
+    // Écouter les événements Socket.io
     socket.on("user_joined", (data: DataRoomResponse) => {
       const updatedRoom = data.room;
-      console.log(data.data.message);
+      // console.log(data.data.message);
       setVRoom(updatedRoom);
     });
 
+    socket.on("video_offer", async (data) => {
+      const { offer } = data;
+      if (peerConnectionRef.current) {
+        await peerConnectionRef.current.setRemoteDescription(
+          new RTCSessionDescription(offer)
+        );
+
+        // Créer une réponse
+        const answer = await peerConnectionRef.current.createAnswer();
+        await peerConnectionRef.current.setLocalDescription(answer);
+
+        // Émettre la réponse à l'autre utilisateur
+        socket.emit("video_answer", {
+          room: vRoom,
+          answer,
+          userId: user?.id,
+        });
+      }
+    });
+
+    socket.on("video_answer", async (data) => {
+      const { answer } = data;
+      if (peerConnectionRef.current) {
+        await peerConnectionRef.current.setRemoteDescription(
+          new RTCSessionDescription(answer)
+        );
+      }
+    });
+
+    socket.on("localVideo", (data) => {
+      const { candidate } = data;
+      if (candidate && peerConnectionRef.current) {
+        peerConnectionRef.current
+          .addIceCandidate(new RTCIceCandidate(candidate))
+          .then(() => console.log("Candidat ajouté avec succès"))
+          .catch((error) =>
+            console.error("Erreur lors de l'ajout du candidat :", error)
+          );
+      }
+    });
+
     return () => {
-      socket.off("offer");
-      socket.off("answer");
-      socket.off("ice-candidate");
+      // Nettoyage des écouteurs d'événements
       socket.off("user_joined");
-      peerConnectionRef.current?.close();
+      socket.off("video_offer");
+      socket.off("video_answer");
+      socket.off("localVideo");
     };
-  }, [setVRoom, otherCandidateId]);
-
-  //   useEffect(() => {
-  //     // Initialize Socket.IO connection
-
-  //     // Check for getUserMedia support
-  //     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-  //       console.error("getUserMedia is not supported in this browser.");
-  //       return;
-  //     }
-
-  //     // Request user media
-  //     if (socket) {
-  //       navigator.mediaDevices
-  //         .getUserMedia({
-  //           video: { facingMode: "user" }, // Use 'environment' for back camera
-  //           audio: true,
-  //         })
-  //         .then((stream) => {
-  //           if (localVideoRef.current) {
-  //             localVideoRef.current.srcObject = stream;
-  //           }
-
-  //           // Create Peer Connection
-  //           peerConnectionRef.current = new RTCPeerConnection();
-
-  //           // Add local stream tracks to Peer Connection
-  //           stream.getTracks().forEach((track) => {
-  //             peerConnectionRef.current?.addTrack(track, stream);
-  //           });
-
-  //           // Handle incoming remote stream
-  //           peerConnectionRef.current.ontrack = (event) => {
-  //             if (remoteVideoRef.current) {
-  //               remoteVideoRef.current.srcObject = event.streams[0];
-  //             }
-  //           };
-
-  //           // Signaling: Handle offer from another user
-  //           if (socket) {
-  //             socket.on("offer", async (offer) => {
-  //               await peerConnectionRef.current?.setRemoteDescription(
-  //                 new RTCSessionDescription(offer)
-  //               );
-  //               const answer = await peerConnectionRef.current?.createAnswer();
-  //               await peerConnectionRef.current?.setLocalDescription(answer);
-  //               socket?.emit("answer", {
-  //                 target: offer.sender,
-  //                 answer,
-  //               });
-  //             });
-  //           }
-
-  //           // Signaling: Handle answer from another user
-  //           if (socket) {
-  //             socket.on("answer", async (answer) => {
-  //               await peerConnectionRef.current?.setRemoteDescription(
-  //                 new RTCSessionDescription(answer)
-  //               );
-  //             });
-  //           }
-
-  //           // Signaling: Handle ICE candidates
-  //           if (socket) {
-  //             socket.on("ice-candidate", async (candidate) => {
-  //               await peerConnectionRef.current?.addIceCandidate(
-  //                 new RTCIceCandidate(candidate)
-  //               );
-  //             });
-  //           }
-  //           // Send ICE candidates to other users
-  //           peerConnectionRef.current.onicecandidate = (event) => {
-  //             if (event.candidate) {
-  //               socket?.emit("ice-candidate", {
-  //                 target: "targetUserId",
-  //                 candidate: event.candidate,
-  //               });
-  //             }
-  //           };
-  //         })
-  //         .catch((error) => {
-  //           console.error("Error accessing media devices.", error);
-  //         });
-  //     }
-  //     return () => {
-  //       socket.off("answer");
-  //       socket.off("ice-candidate");
-  //       socket.off("offer");
-  //       peerConnectionRef.current?.close();
-  //     };
-  //   }, []);
+  }, [setVRoom, vRoom, user]);
 
   if (!user || !vRoom) {
     return redirect("/");
@@ -215,8 +159,19 @@ const VideoChatPage = () => {
         {vRoom.users[0]} and {vRoom.users[1]} are in a video call.
       </p>
 
-      <video ref={localVideoRef} autoPlay muted style={{ width: "300px" }} />
-      <video ref={remoteVideoRef} autoPlay style={{ width: "300px" }} />
+      <div className="w-full py-6 grid grid-cols-1 lg:grid-cols-2  lg:h-96 gap-6">
+        <video
+          ref={localVideoRef}
+          autoPlay
+          muted
+          className="w-full lg:h-full h-64 border border-gray-600 rounded"
+        />
+        <video
+          ref={remoteVideoRef}
+          autoPlay
+          className="w-full lg:h-full h-64 border border-gray-600 rounded"
+        />
+      </div>
     </div>
   );
 };

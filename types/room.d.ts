@@ -12,5 +12,5 @@ export interface DataRoomResponse {
 export interface DataVideoRoomResponse {
   room: RoomType;
   error?: string | null;
-  data: unknown | null;
+  data: { stream: MediaStream | null; user: string };
 }
