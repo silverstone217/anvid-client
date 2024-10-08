@@ -3,7 +3,7 @@ import { socket } from "@/lib/socket";
 import { useUserStore, useVideoRoomUsersStore } from "@/lib/store";
 import { DataRoomResponse } from "@/types/room";
 import { redirect } from "next/navigation";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Socket } from "socket.io-client";
 
 const VideoChatPage = () => {
@@ -17,6 +17,14 @@ const VideoChatPage = () => {
 
   const [isMuted, setIsMuted] = useState<boolean>(false);
   const [isVideoHidden, setIsVideoHidden] = useState<boolean>(false);
+
+  const otherCandidateId = useMemo(
+    () =>
+      vRoom?.users && vRoom?.users.length === 2
+        ? vRoom.users.find((us) => us !== user?.id)
+        : null,
+    [user?.id, vRoom?.users]
+  );
 
   useEffect(() => {
     const initializeMedia = async () => {
@@ -49,7 +57,7 @@ const VideoChatPage = () => {
         peerConnectionRef.current.onicecandidate = (event) => {
           if (event.candidate) {
             socket?.emit("ice-candidate", {
-              target: vRoom?.name,
+              target: otherCandidateId,
               candidate: event.candidate,
             });
           }
@@ -65,10 +73,14 @@ const VideoChatPage = () => {
       await peerConnectionRef.current?.setRemoteDescription(
         new RTCSessionDescription(offer)
       );
+
+      // Create an answer
       const answer = await peerConnectionRef.current?.createAnswer();
       await peerConnectionRef.current?.setLocalDescription(answer);
+
+      // Send answer back to the user who made the offer
       socket.emit("answer", {
-        target: offer.sender,
+        target: offer.sender, // Ensure this is the correct sender ID
         answer,
       });
     });
@@ -98,7 +110,7 @@ const VideoChatPage = () => {
       socket.off("user_joined");
       peerConnectionRef.current?.close();
     };
-  }, [setVRoom, vRoom?.name]);
+  }, [setVRoom, otherCandidateId]);
 
   //   useEffect(() => {
   //     // Initialize Socket.IO connection
