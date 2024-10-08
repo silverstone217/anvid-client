@@ -12,7 +12,7 @@ type MessageType = {
 };
 
 const ChatRoomPage = () => {
-  const { user } = useUserStore();
+  const { user, setUser } = useUserStore();
   const { room, setRoom } = useRoomUsersStore();
   const [messages, setMessages] = useState<MessageType[]>([]);
   const [message, setMessage] = useState("");

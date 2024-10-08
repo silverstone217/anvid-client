@@ -63,7 +63,8 @@ const MainHome = () => {
       socket.off("disconnect", onDisconnect);
       //   socket.off("userId", onUserIdReceived); // Clean up userId listener
     };
-  }, [isConnected, setUser]); // Empty dependency array ensures this runs once
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Empty dependency array ensures this runs once
 
   // Join or create a room when the user is connected
   const joinOrCreateRoom = async (userId: string) => {

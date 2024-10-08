@@ -22,7 +22,7 @@ const VideoChatPage = () => {
     const initializeMedia = async () => {
       try {
         if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-          throw new Error("getUserMedia is not supported in this browser.");
+          console.warn("getUserMedia is not supported in this browser.");
         }
 
         const stream = await navigator.mediaDevices.getUserMedia({
