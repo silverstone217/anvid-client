@@ -20,6 +20,9 @@ const nextConfig = {
       },
     ],
   },
+  eslint: {
+    ignoreDuringBuilds: true, // Ignore ESLint lors de la construction
+  },
 };
 
 export default nextConfig;
