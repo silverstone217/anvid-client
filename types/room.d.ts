@@ -8,3 +8,9 @@ export interface DataRoomResponse {
   error?: string | null;
   data: { user: string; message: string };
 }
+
+export interface DataVideoRoomResponse {
+  room: RoomType;
+  error?: string | null;
+  data: unknown | null;
+}

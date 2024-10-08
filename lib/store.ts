@@ -23,3 +23,13 @@ export const useRoomUsersStore = create<RoomUsersType>((set) => ({
   room: null,
   setRoom: (room: RoomType | null) => set({ room }),
 }));
+
+interface VideoRoomUsersType {
+  vRoom: RoomType | null;
+  setVRoom: (room: RoomType | null) => void;
+}
+
+export const useVideoRoomUsersStore = create<VideoRoomUsersType>((set) => ({
+  vRoom: null,
+  setVRoom: (vRoom: RoomType | null) => set({ vRoom }),
+}));

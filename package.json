@@ -14,6 +14,7 @@
     "react": "^18",
     "react-dom": "^18",
     "socket.io-client": "^4.8.0",
+    "webrtc-adapter": "^9.0.1",
     "zustand": "^5.0.0-rc.2"
   },
   "devDependencies": {

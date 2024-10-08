@@ -1,18 +1,28 @@
 "use client";
 import { socket } from "@/lib/socket";
-import { useRoomUsersStore, useUserStore } from "@/lib/store";
-import { DataRoomResponse, RoomType } from "@/types/room";
-import { SERVER_URL } from "@/utils/data";
+import {
+  useRoomUsersStore,
+  useUserStore,
+  useVideoRoomUsersStore,
+} from "@/lib/store";
+import {
+  DataRoomResponse,
+  DataVideoRoomResponse,
+  RoomType,
+} from "@/types/room";
+// import { SERVER_URL } from "@/utils/data";
 import { Headset, MessageCircle } from "lucide-react";
-import { redirect, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import React, { useEffect, useState } from "react";
 
 const MainHome = () => {
   const [isConnected, setIsConnected] = useState(socket.connected);
   const { user, setUser } = useUserStore();
   const { room, setRoom } = useRoomUsersStore();
+  const { vRoom, setVRoom } = useVideoRoomUsersStore();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [vLoading, setVLoading] = useState(false);
 
   useEffect(() => {
     // Connect the socket when the component mounts
@@ -53,7 +63,7 @@ const MainHome = () => {
       socket.off("disconnect", onDisconnect);
       //   socket.off("userId", onUserIdReceived); // Clean up userId listener
     };
-  }, []); // Empty dependency array ensures this runs once
+  }, [isConnected, setUser]); // Empty dependency array ensures this runs once
 
   // Join or create a room when the user is connected
   const joinOrCreateRoom = async (userId: string) => {
@@ -86,6 +96,32 @@ const MainHome = () => {
     }, 1000);
   };
 
+  // launch room for video player
+  const launchVideoRoom = async (userId: string) => {
+    setVLoading(true);
+    // Emit an event to join or create a room
+    socket.emit("join_or_create_video_room", userId);
+
+    // Listen for the room information from the server
+    socket.on("video_room", (payload: DataVideoRoomResponse) => {
+      const currRoom = payload.room as RoomType;
+      // For example, you might want to update your state or UI
+      setVRoom(currRoom);
+    });
+
+    // Optionally handle errors
+    socket.on("error", (errorMessage) => {
+      console.error("Error:", errorMessage);
+      // Handle any errors here
+    });
+
+    setTimeout(() => {
+      setVLoading(false);
+
+      router.push(`/video`);
+    }, 1000);
+  };
+
   return (
     <div
       className="w-full p-4 flex flex-col gap-10 min-h-[100dvh] items-center justify-center
@@ -111,9 +147,9 @@ const MainHome = () => {
           flex items-center gap-4 justify-center transition-all duration-500 ease-in-out  
           hover:opacity-75 hover:scale-105
           `}
-          disabled={user?.isConnected ? false : true || loading}
+          disabled={user?.isConnected ? false : true || loading || vLoading}
           onClick={() => {
-            user && joinOrCreateRoom(user?.id);
+            if (user) joinOrCreateRoom(user?.id);
           }}
         >
           <span>{loading ? "joining..." : "Join the chat"}</span>
@@ -127,12 +163,12 @@ const MainHome = () => {
           flex items-center gap-4 justify-center transition-all duration-500 ease-in-out 
           hover:opacity-75 hover:scale-105
           `}
-          disabled={user?.isConnected ? false : true || loading}
+          disabled={user?.isConnected ? false : true || loading || vLoading}
           onClick={() => {
-            // socket.emit("join");
+            if (user) launchVideoRoom(user?.id);
           }}
         >
-          <span>Launch video chat</span>
+          <span>{vLoading ? "joining..." : "Launch video chat"}</span>
           <Headset />
         </button>
       </div>
