@@ -1,7 +1,7 @@
 "use client";
 import { socket } from "@/lib/socket";
 import { useUserStore, useVideoRoomUsersStore } from "@/lib/store";
-import { DataRoomResponse, RoomType } from "@/types/room";
+import { DataRoomResponse } from "@/types/room";
 import { iceServers } from "@/utils/data";
 import { redirect } from "next/navigation";
 import React, { useEffect, useMemo, useRef, useState } from "react";
@@ -15,16 +15,8 @@ const VideoChatPage = () => {
 
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
 
-  const [isMuted, setIsMuted] = useState<boolean>(false);
-  const [isVideoHidden, setIsVideoHidden] = useState<boolean>(false);
-
-  const otherCandidateId = useMemo(
-    () =>
-      vRoom?.users && vRoom?.users.length === 2
-        ? vRoom.users.find((us) => us !== user?.id)
-        : null,
-    [user?.id, vRoom?.users]
-  );
+  // const [isMuted, setIsMuted] = useState<boolean>(false);
+  // const [isVideoHidden, setIsVideoHidden] = useState<boolean>(false);
 
   useEffect(() => {
     const initializeMedia = async () => {
@@ -36,7 +28,6 @@ const VideoChatPage = () => {
             audio: true,
           });
 
-          // console.log("Flux média obtenu :", stream);
           if (localVideoRef.current) {
             localVideoRef.current.srcObject = stream;
           }
@@ -51,13 +42,12 @@ const VideoChatPage = () => {
 
             // Ajouter le flux local à la connexion
             stream.getTracks().forEach((track) => {
-              if (peerConnectionRef.current)
-                peerConnectionRef.current.addTrack(track, stream);
+              peerConnectionRef.current?.addTrack(track, stream);
             });
 
             // Émettre une offre
             const offer = await peerConnectionRef.current.createOffer();
-            await peerConnectionRef.current.setLocalDescription(offer);
+            await setLocalDescriptionSafe(offer);
             socket.emit("video_offer", {
               room: vRoom,
               offer,
@@ -67,7 +57,6 @@ const VideoChatPage = () => {
             // Gestion des candidats ICE
             peerConnectionRef.current.onicecandidate = (event) => {
               if (event.candidate) {
-                // console.log("Envoi du candidat :", event.candidate);
                 socket.emit("localVideo", {
                   room: vRoom,
                   candidate: event.candidate,
@@ -80,7 +69,6 @@ const VideoChatPage = () => {
             peerConnectionRef.current.ontrack = (event) => {
               if (remoteVideoRef.current) {
                 remoteVideoRef.current.srcObject = event.streams[0];
-                // console.log("Flux vidéo distant reçu :", event.streams[0]);
               }
             };
           }
@@ -95,7 +83,6 @@ const VideoChatPage = () => {
     // Écouter les événements Socket.io
     socket.on("user_joined", (data: DataRoomResponse) => {
       const updatedRoom = data.room;
-      // console.log(data.data.message);
       setVRoom(updatedRoom);
     });
 
@@ -108,7 +95,7 @@ const VideoChatPage = () => {
 
         // Créer une réponse
         const answer = await peerConnectionRef.current.createAnswer();
-        await peerConnectionRef.current.setLocalDescription(answer);
+        await setLocalDescriptionSafe(answer); // Utiliser la fonction sécurisée ici
 
         // Émettre la réponse à l'autre utilisateur
         socket.emit("video_answer", {
@@ -122,9 +109,25 @@ const VideoChatPage = () => {
     socket.on("video_answer", async (data) => {
       const { answer } = data;
       if (peerConnectionRef.current) {
-        await peerConnectionRef.current.setRemoteDescription(
-          new RTCSessionDescription(answer)
-        );
+        // Log the incoming answer SDP for debugging
+        console.log("Received answer SDP:", answer);
+
+        // Check signaling state before setting remote description
+        if (peerConnectionRef.current.signalingState === "have-remote-offer") {
+          try {
+            await peerConnectionRef.current.setRemoteDescription(
+              new RTCSessionDescription(answer)
+            );
+            console.log("Remote description set successfully.");
+          } catch (error) {
+            console.error("Error setting remote description:", error);
+          }
+        } else {
+          console.warn(
+            "Invalid signaling state for setting remote description:",
+            peerConnectionRef.current.signalingState
+          );
+        }
       }
     });
 
@@ -142,7 +145,7 @@ const VideoChatPage = () => {
 
     socket.on("user_left", (data) => {
       const { room, data: messageData } = data;
-      console.log(messageData.message); // Affichez le message dans la console ou mettez à jour l'UI
+      console.log(messageData.message);
       setVRoom(room);
     });
 
@@ -155,6 +158,34 @@ const VideoChatPage = () => {
       socket.off("user_left");
     };
   }, [setVRoom, vRoom, user]);
+
+  // Fonction sécurisée pour définir la description locale
+  const setLocalDescriptionSafe = async (
+    description: RTCSessionDescriptionInit
+  ): Promise<void> => {
+    if (
+      peerConnectionRef.current &&
+      (peerConnectionRef.current.signalingState === "stable" ||
+        peerConnectionRef.current.signalingState === "have-local-offer")
+    ) {
+      try {
+        await peerConnectionRef.current.setLocalDescription(description);
+        console.log("Description locale définie avec succès");
+      } catch (error) {
+        console.error(
+          "Erreur lors de la définition de la description locale :",
+          error
+        );
+      }
+    } else {
+      console.warn(
+        "Tentative de définition de la description locale dans un état incorrect :",
+        peerConnectionRef.current?.signalingState
+      );
+    }
+  };
+
+  // redirect to the home page if no room is available or not user authenticated
 
   if (!user || !vRoom) {
     return redirect("/");
@@ -210,6 +241,7 @@ const VideoChatPage = () => {
             // setUser(null);
             setVRoom(null);
             location.replace("/");
+            location.reload();
           }}
         >
           Leave

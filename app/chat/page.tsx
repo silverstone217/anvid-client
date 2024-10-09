@@ -21,6 +21,8 @@ const ChatRoomPage = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null); //
 
+  
+
   // Fonction pour faire défiler vers le bas
   const scrollToBottom = () => {
     if (messagesContainerRef.current) {
@@ -50,6 +52,7 @@ const ChatRoomPage = () => {
       // console.log(data.data.message);
       setMessages((prev) => [...prev, data.data]);
       setRoom(updatedRoom); // Update Zustand store with new room information
+
       scrollToBottom(); // Faites défiler vers le bas
     });
     socket.on("receive_message", (data: DataRoomResponse) => {
@@ -66,6 +69,7 @@ const ChatRoomPage = () => {
       // console.log(data.data.message);
       setMessages((prev) => [...prev, data.data]);
       setRoom(updatedRoom); // Update Zustand store with new room information
+      // console.log("left room users", updatedRoom.users);
       scrollToBottom(); // Faites défiler vers le bas
     });
 
@@ -116,6 +120,7 @@ const ChatRoomPage = () => {
               // setUser(null);
               setRoom(null);
               location.replace("/");
+              location.reload();
             }}
           >
             Leave

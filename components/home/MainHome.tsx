@@ -11,7 +11,7 @@ import {
   RoomType,
 } from "@/types/room";
 // import { SERVER_URL } from "@/utils/data";
-import { Headset, MessageCircle } from "lucide-react";
+import { Video, MessageCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import React, { useEffect, useState } from "react";
 
@@ -136,7 +136,6 @@ const MainHome = () => {
         <p className="text-lg text-center">
           {`Let's get fun on the best video anonym and chat application.`}
         </p>
-        <p className="text-sm text-center">room : {room?.name}</p>
       </div>
 
       {/* buttons and links */}
@@ -170,7 +169,7 @@ const MainHome = () => {
           }}
         >
           <span>{vLoading ? "joining..." : "Launch video chat"}</span>
-          <Headset />
+          <Video />
         </button>
       </div>
 
