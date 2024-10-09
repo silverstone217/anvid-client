@@ -46,7 +46,7 @@ const VideoChatPage = () => {
 
             // Initialiser la connexion WebRTC
             peerConnectionRef.current = new RTCPeerConnection({
-              iceServers: iceServers,
+              iceServers,
             });
 
             // Ajouter le flux local à la connexion
@@ -162,18 +162,34 @@ const VideoChatPage = () => {
         {vRoom.users[0]} and {vRoom.users[1]} are in a video call.
       </p>
 
-      <div className="w-full py-6 grid grid-cols-1 lg:grid-cols-2  lg:h-96 gap-6">
-        <video
-          ref={localVideoRef}
-          autoPlay
-          muted
-          className="w-full lg:h-full h-64 border border-gray-600 rounded object-cover"
-        />
+      <div className="w-full flex gap-2 items-center justify-center flex-wrap mt-2">
+        <span role="button" className="p-2 bg-blue-600 rounded">
+          Show
+        </span>
+        <span role="button" className="p-2 bg-blue-700 rounded">
+          Mute
+        </span>
+        <span role="button" className="p-2 bg-red-700 rounded">
+          Leave
+        </span>
+      </div>
+
+      <div className="w-full py-6 flex items-center justify-center gap-2 flex-1 relative max-h-[500px]">
         <video
           ref={remoteVideoRef}
           autoPlay
-          className="w-full lg:h-full h-64 border border-gray-600 rounded object-cover"
+          className="w-full h-full border border-gray-600 rounded object-cover"
         />
+
+        {/* my stream */}
+        <div className="absolute bottom-12 right-2 w-32 h-32 lg:w-44 lg:h-40 bg-transparent/40 flex items-center justify-center z-20">
+          <video
+            ref={localVideoRef}
+            autoPlay
+            muted
+            className="w-full h-full border border-gray-600 rounded object-cover"
+          />
+        </div>
       </div>
     </div>
   );
