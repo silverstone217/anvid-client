@@ -28,6 +28,7 @@ const VideoChatPage = () => {
             audio: true,
           });
 
+          // console.log("Flux média obtenu :", stream);
           if (localVideoRef.current) {
             localVideoRef.current.srcObject = stream;
           }
@@ -42,12 +43,13 @@ const VideoChatPage = () => {
 
             // Ajouter le flux local à la connexion
             stream.getTracks().forEach((track) => {
-              peerConnectionRef.current?.addTrack(track, stream);
+              if (peerConnectionRef.current)
+                peerConnectionRef.current.addTrack(track, stream);
             });
 
             // Émettre une offre
             const offer = await peerConnectionRef.current.createOffer();
-            await setLocalDescriptionSafe(offer);
+            await peerConnectionRef.current.setLocalDescription(offer);
             socket.emit("video_offer", {
               room: vRoom,
               offer,
@@ -57,6 +59,7 @@ const VideoChatPage = () => {
             // Gestion des candidats ICE
             peerConnectionRef.current.onicecandidate = (event) => {
               if (event.candidate) {
+                // console.log("Envoi du candidat :", event.candidate);
                 socket.emit("localVideo", {
                   room: vRoom,
                   candidate: event.candidate,
@@ -69,6 +72,7 @@ const VideoChatPage = () => {
             peerConnectionRef.current.ontrack = (event) => {
               if (remoteVideoRef.current) {
                 remoteVideoRef.current.srcObject = event.streams[0];
+                // console.log("Flux vidéo distant reçu :", event.streams[0]);
               }
             };
           }
@@ -83,6 +87,7 @@ const VideoChatPage = () => {
     // Écouter les événements Socket.io
     socket.on("user_joined", (data: DataRoomResponse) => {
       const updatedRoom = data.room;
+      // console.log(data.data.message);
       setVRoom(updatedRoom);
     });
 
@@ -95,7 +100,7 @@ const VideoChatPage = () => {
 
         // Créer une réponse
         const answer = await peerConnectionRef.current.createAnswer();
-        await setLocalDescriptionSafe(answer); // Utiliser la fonction sécurisée ici
+        await peerConnectionRef.current.setLocalDescription(answer);
 
         // Émettre la réponse à l'autre utilisateur
         socket.emit("video_answer", {
@@ -109,25 +114,9 @@ const VideoChatPage = () => {
     socket.on("video_answer", async (data) => {
       const { answer } = data;
       if (peerConnectionRef.current) {
-        // Log the incoming answer SDP for debugging
-        console.log("Received answer SDP:", answer);
-
-        // Check signaling state before setting remote description
-        if (peerConnectionRef.current.signalingState === "have-remote-offer") {
-          try {
-            await peerConnectionRef.current.setRemoteDescription(
-              new RTCSessionDescription(answer)
-            );
-            console.log("Remote description set successfully.");
-          } catch (error) {
-            console.error("Error setting remote description:", error);
-          }
-        } else {
-          console.warn(
-            "Invalid signaling state for setting remote description:",
-            peerConnectionRef.current.signalingState
-          );
-        }
+        await peerConnectionRef.current.setRemoteDescription(
+          new RTCSessionDescription(answer)
+        );
       }
     });
 
@@ -145,7 +134,7 @@ const VideoChatPage = () => {
 
     socket.on("user_left", (data) => {
       const { room, data: messageData } = data;
-      console.log(messageData.message);
+      console.log(messageData.message); // Affichez le message dans la console ou mettez à jour l'UI
       setVRoom(room);
     });
 
@@ -158,34 +147,6 @@ const VideoChatPage = () => {
       socket.off("user_left");
     };
   }, [setVRoom, vRoom, user]);
-
-  // Fonction sécurisée pour définir la description locale
-  const setLocalDescriptionSafe = async (
-    description: RTCSessionDescriptionInit
-  ): Promise<void> => {
-    if (
-      peerConnectionRef.current &&
-      (peerConnectionRef.current.signalingState === "stable" ||
-        peerConnectionRef.current.signalingState === "have-local-offer")
-    ) {
-      try {
-        await peerConnectionRef.current.setLocalDescription(description);
-        console.log("Description locale définie avec succès");
-      } catch (error) {
-        console.error(
-          "Erreur lors de la définition de la description locale :",
-          error
-        );
-      }
-    } else {
-      console.warn(
-        "Tentative de définition de la description locale dans un état incorrect :",
-        peerConnectionRef.current?.signalingState
-      );
-    }
-  };
-
-  // redirect to the home page if no room is available or not user authenticated
 
   if (!user || !vRoom) {
     return redirect("/");
