@@ -5,7 +5,8 @@
 
 ## Description
 
-Anvid is an anonymous video chat application that allows users to connect and communicate via video in real-time. This client-side application is built using Next.js and leverages Socket.IO for real-time communication with the backend server.
+Anvid is an anonymous video chat application that allows users to connect and communicate via video in real-time.
+This client-side application is built using Next.js and leverages Socket.IO for real-time communication with the backend server.
 
 ## Features
 
@@ -28,8 +29,6 @@ Anvid is an anonymous video chat application that allows users to connect and co
    git clone https://github.com/silverstone217/anvid-client.git
    cd anvid-client
    ```
-````
-
 2. Install the following dependencies:
    ```bash
    npm install
@@ -46,3 +45,4 @@ Anvid is an anonymous video chat application that allows users to connect and co
 3. **Further Documentation**: Depending on your audience, you may want to add sections on testing, deployment instructions, or specific API endpoints in the backend README.
 
 These README files should provide clear guidance on how to set up and use your application while also detailing the technologies involved. If you need further adjustments or additional sections, feel free to ask!
+````
