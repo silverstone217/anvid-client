@@ -1,7 +1,7 @@
 "use client";
 import { socket } from "@/lib/socket";
 import { useUserStore, useVideoRoomUsersStore } from "@/lib/store";
-import { DataRoomResponse } from "@/types/room";
+import { DataRoomResponse, RoomType } from "@/types/room";
 import { iceServers } from "@/utils/data";
 import { redirect } from "next/navigation";
 import React, { useEffect, useMemo, useRef, useState } from "react";
@@ -36,7 +36,7 @@ const VideoChatPage = () => {
             audio: true,
           });
 
-          console.log("Flux média obtenu :", stream);
+          // console.log("Flux média obtenu :", stream);
           if (localVideoRef.current) {
             localVideoRef.current.srcObject = stream;
           }
@@ -67,7 +67,7 @@ const VideoChatPage = () => {
             // Gestion des candidats ICE
             peerConnectionRef.current.onicecandidate = (event) => {
               if (event.candidate) {
-                console.log("Envoi du candidat :", event.candidate);
+                // console.log("Envoi du candidat :", event.candidate);
                 socket.emit("localVideo", {
                   room: vRoom,
                   candidate: event.candidate,
@@ -140,12 +140,19 @@ const VideoChatPage = () => {
       }
     });
 
+    socket.on("user_left", (data) => {
+      const { room, data: messageData } = data;
+      console.log(messageData.message); // Affichez le message dans la console ou mettez à jour l'UI
+      setVRoom(room);
+    });
+
     return () => {
       // Nettoyage des écouteurs d'événements
       socket.off("user_joined");
       socket.off("video_offer");
       socket.off("video_answer");
       socket.off("localVideo");
+      socket.off("user_left");
     };
   }, [setVRoom, vRoom, user]);
 
@@ -154,42 +161,59 @@ const VideoChatPage = () => {
   }
 
   return (
-    <div className="w-full flex flex-col items-center justify-center h-[100dvh] overflow-hidden lg:px-4 lg:py-4 py-2 px-2">
-      <h2>Video Chat</h2>
-      <p className="text-xs">
+    <div
+      className="w-full flex flex-col items-center justify-start 
+    h-[100dvh] overflow-hidden lg:px-4 pt-6 px-2 relative"
+    >
+      <div className="w-full h-full absolute top-0 bottom-0 left-0 right-0">
+        <div className="w-full  flex items-center justify-center gap-2 flex-1 relative h-full">
+          {vRoom.users.length === 2 ? (
+            <video
+              ref={remoteVideoRef}
+              autoPlay
+              className="w-full h-full border border-gray-600 rounded object-cover"
+            />
+          ) : (
+            <p>Un utilisateur est en train de rejoindre...</p>
+          )}
+          {/* my stream */}
+          <div className="absolute bottom-12 right-2 w-32 h-32 lg:w-44 lg:h-40 bg-transparent/40 flex items-center justify-center z-20">
+            <video
+              ref={localVideoRef}
+              autoPlay
+              muted
+              playsInline // Ajouté ici
+              className="w-full h-full border border-gray-600 rounded object-cover"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* <p className="text-xs">
         You are currently connected in {vRoom.name}.
         <br />
         {vRoom.users[0]} and {vRoom.users[1]} are in a video call.
-      </p>
+      </p> */}
 
-      <div className="w-full flex gap-2 items-center justify-center flex-wrap mt-2">
-        <span role="button" className="p-2 bg-blue-600 rounded">
+      <div className="w-full flex gap-4 items-center justify-center flex-wrap mt-2 text-sm z-20">
+        {/* <span role="button" className="p-2 bg-blue-600/30 rounded shadow-lg">
           Show
         </span>
-        <span role="button" className="p-2 bg-blue-700 rounded">
+        <span role="button" className="p-2 bg-blue-700/30 rounded shadow-lg">
           Mute
-        </span>
-        <span role="button" className="p-2 bg-red-700 rounded">
+        </span> */}
+        <span
+          role="button"
+          className="p-2 bg-red-500/40 rounded shadow-lg ml-auto"
+          onClick={() => {
+            socket.emit("leave_room", { userId: user.id, room: vRoom });
+            // setUser(null);
+            setVRoom(null);
+            window.location.replace("/");
+          }}
+        >
           Leave
         </span>
-      </div>
-
-      <div className="w-full py-6 flex items-center justify-center gap-2 flex-1 relative max-h-[500px]">
-        <video
-          ref={remoteVideoRef}
-          autoPlay
-          className="w-full h-full border border-gray-600 rounded object-cover"
-        />
-
-        {/* my stream */}
-        <div className="absolute bottom-12 right-2 w-32 h-32 lg:w-44 lg:h-40 bg-transparent/40 flex items-center justify-center z-20">
-          <video
-            ref={localVideoRef}
-            autoPlay
-            muted
-            className="w-full h-full border border-gray-600 rounded object-cover"
-          />
-        </div>
       </div>
     </div>
   );

@@ -115,7 +115,7 @@ const ChatRoomPage = () => {
               socket.emit("leave_room", { userId: user.id, room });
               // setUser(null);
               setRoom(null);
-              redirect("/");
+              window.location.replace("/");
             }}
           >
             Leave
