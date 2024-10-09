@@ -2,6 +2,7 @@
 import { socket } from "@/lib/socket";
 import { useUserStore, useVideoRoomUsersStore } from "@/lib/store";
 import { DataRoomResponse } from "@/types/room";
+import { iceServers } from "@/utils/data";
 import { redirect } from "next/navigation";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 
@@ -44,7 +45,9 @@ const VideoChatPage = () => {
             if (!user || !vRoom) return;
 
             // Initialiser la connexion WebRTC
-            peerConnectionRef.current = new RTCPeerConnection();
+            peerConnectionRef.current = new RTCPeerConnection({
+              iceServers: iceServers,
+            });
 
             // Ajouter le flux local à la connexion
             stream.getTracks().forEach((track) => {
@@ -164,12 +167,12 @@ const VideoChatPage = () => {
           ref={localVideoRef}
           autoPlay
           muted
-          className="w-full lg:h-full h-64 border border-gray-600 rounded"
+          className="w-full lg:h-full h-64 border border-gray-600 rounded object-cover"
         />
         <video
           ref={remoteVideoRef}
           autoPlay
-          className="w-full lg:h-full h-64 border border-gray-600 rounded"
+          className="w-full lg:h-full h-64 border border-gray-600 rounded object-cover"
         />
       </div>
     </div>
