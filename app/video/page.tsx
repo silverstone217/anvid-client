@@ -174,7 +174,7 @@ const VideoChatPage = () => {
               className="w-full h-full border border-gray-600 rounded object-cover"
             />
           ) : (
-            <p>Un utilisateur est en train de rejoindre...</p>
+            <p>Wait soemeone is joining...</p>
           )}
           {/* my stream */}
           <div className="absolute bottom-12 right-2 w-32 h-32 lg:w-44 lg:h-40 bg-transparent/40 flex items-center justify-center z-20">
@@ -209,7 +209,7 @@ const VideoChatPage = () => {
             socket.emit("leave_room", { userId: user.id, room: vRoom });
             // setUser(null);
             setVRoom(null);
-            window.location.replace("/");
+            location.replace("/");
           }}
         >
           Leave
