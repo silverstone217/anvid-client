@@ -52,6 +52,8 @@ const MainHome = () => {
       console.log("User disconnected");
     };
 
+    console.log("Is infinite loop running?");
+
     // Listen for events
     socket.on("connect", onConnect);
     socket.on("disconnect", onDisconnect);
@@ -64,7 +66,7 @@ const MainHome = () => {
       //   socket.off("userId", onUserIdReceived); // Clean up userId listener
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Empty dependency array ensures this runs once
+  }, [user?.id]); // Empty dependency array ensures this runs once
 
   // Join or create a room when the user is connected
   const joinOrCreateRoom = async (userId: string) => {
