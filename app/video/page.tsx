@@ -196,7 +196,7 @@ const VideoChatPage = () => {
         </span> */}
         <span
           role="button"
-          className="p-2 bg-red-500/40 rounded shadow-lg ml-auto"
+          className="p-2 bg-red-500/60 rounded shadow-lg ml-auto"
           onClick={() => {
             socket.emit("leave_room", { userId: user.id, room: vRoom });
             // setUser(null);

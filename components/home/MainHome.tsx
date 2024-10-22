@@ -52,7 +52,7 @@ const MainHome = () => {
       console.log("User disconnected");
     };
 
-    console.log("Is infinite loop running?");
+    // console.log("Is infinite loop running?");
 
     // Listen for events
     socket.on("connect", onConnect);
@@ -135,6 +135,7 @@ const MainHome = () => {
         <h1 className="text-4xl font-bold text-center">
           Welcome to <span className="text-blue-500">Anvid!</span>
         </h1>
+
         <p className="text-lg text-center">
           {`Let's get fun on the best video anonym and chat application.`}
         </p>
